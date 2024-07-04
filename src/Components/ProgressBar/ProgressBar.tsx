@@ -1,19 +1,19 @@
 import "./ProgressBar.css";
 import { FormClickActions } from "../../Utils/EventChannels";
 import Input from "../../Model/Input-Model";
-import React, { useEffect, useRef } from "react";
+import React, { useContext, useEffect, useRef } from "react";
+import RefCollectorContext from '../../Context/RefCollectorContext';
 
 interface ProgressBarProps {
   sections: { label: string }[];
-  references: HTMLDivElement[];
 }
 
-const ProgressBar: React.FC<ProgressBarProps> = ({ sections, references }) => {
-  const sec: {
-    label: string;
-    index: number;
-    ref: React.MutableRefObject<HTMLDivElement | null>;
-  }[] = [];
+const ProgressBar: React.FC<ProgressBarProps> = ({ sections }) => {
+  const sec = useRef(sections.map((section, index) => ({
+    label: section.label,
+    index: index,
+    ref: React.createRef<HTMLDivElement>(),
+  }))).current;
 
   sections.forEach((section, index) => {
     sec.push({
@@ -92,10 +92,22 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ sections, references }) => {
     // eslint-disable-next-line
   }, []);
 
+  const refCollectorContext = useContext(RefCollectorContext);
+  const collectRefScrollBarSection = refCollectorContext.collectRefScrollBarSection;
+
+  useEffect(() => {
+    sec.forEach((section) => {
+      if (section.ref.current !== null) {
+        collectRefScrollBarSection(section.ref.current);
+      }
+    });
+  }, [collectRefScrollBarSection]);
+  
   return (
     <div className="progress-bar-vertical">
       {sections.map((section, sec_index) => (
         <div
+          id={section.label}
           onClick={() => give_focus(section)}
           key={`${sec_index}`}
           className={`section `}

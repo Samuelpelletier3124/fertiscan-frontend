@@ -4,7 +4,7 @@
   height: 120%;
   border-radius: 15px;
   overflow: hidden;
-  position: sticky;
+  position: relative; /* Modifié de static à relative */
   margin-top: 50px;
 }
 
@@ -12,6 +12,7 @@
   position: fixed;
   right: 20px;
   top: 60px;
+  z-index: 1000; /* Ajouté pour un meilleur contrôle du stacking si nécessaire */
 }
 
 .section {
@@ -23,9 +24,11 @@
 .section.approved {
   background-color: rgb(18, 178, 18);
 }
+
 .section.modified {
   background-color: rgb(255, 255, 0);
 }
+
 .section.rejected {
   background-color: rgb(255, 0, 0);
 }

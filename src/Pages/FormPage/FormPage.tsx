@@ -30,7 +30,7 @@ const FormPage = () => {
   const [inputsHeights, setInputsHeights] = useState<number[]>([]);
   const [lastModifiedDiv, setLastModifiedDiv] = useState<HTMLDivElement | null>(null);
   const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
-  const [scrollBarPosition, setScrollBarPosition] = useState({ top:0});
+  const [scrollBarPosition, setScrollBarPosition] = useState<number>();
   // @ts-expect-error : setForm is going to be used when linked to db
   // eslint-disable-next-line
   const [form, setForm] = useState({
@@ -70,60 +70,33 @@ const FormPage = () => {
 
   const [centerY, setYCenter] = useState<number>();
 
-  useEffect(() => {
-    // Définition de la fonction qui met à jour centerY
-    function updateCenter() {
-      // Calcul de la nouvelle valeur de centerY
-      const newCenterY = window.innerHeight / 2;
-      setYCenter(newCenterY);
-      calculateClosestDiv();
-    }
-    // Enregistrement de la fonction comme écouteur d'événement pour l'événement de redimensionnement
-    window.addEventListener('resize', updateCenter);
-
-    window.addEventListener('scroll', updateCenter);
-    
-    // Mise à jour initiale de centerY lors du premier rendu
-    updateCenter();
-
-    // Fonction de nettoyage qui sera appelée lors du démontage du composant
-    return () => {
-      window.removeEventListener('resize', updateCenter);
-    };
-  }, []);
+  function updateCenter() {
+    // Calcul de la nouvelle valeur de centerY
+    const newCenterY = window.innerHeight / 2;
+    setYCenter(newCenterY);
+    //calculateClosestDiv();
+  }
 
 
-  function calculateClosestDiv() {
+  /*function calculateClosestDiv() {
     let closest = null;
     let smallestDifference = Number.POSITIVE_INFINITY;
   
-    // S'assurer que centerY est défini et que formDivRefs est un tableau valide
-    if (typeof centerY !== 'number' || !Array.isArray(formDivRefs)) {
-      console.error('Invalid centerY value or formDivRefs');
-      return closest;
-    }
-  
     formDivRefs.forEach((divRef) => {
-      if (divRef) {
+      if (divRef && centerY !== undefined) {
         const rect = divRef.getBoundingClientRect();
-        const divCenterY = rect.top + (rect.height / 2) + window.scrollY; // Ajout de window.scrollY pour compenser le défilement de la page
+        const divCenterY = rect.top + (rect.height / 2); // Ajout de window.scrollY pour compenser le défilement de la page
         const difference = Math.abs(centerY - divCenterY);
   
         if (difference < smallestDifference) {
           smallestDifference = difference;
-          // Assumant ici que divRef.current.children[0] est le label que vous voulez accéder
-          closest = divRef.children[0].innerHTML;
+          //console.log(divRef.children[0].innerHTML, "/n ",rect," /n",'DivCenterY:', divCenterY,"/n", 'Difference:', difference);
+          //closest = divRef.children[];
         }
       }
     });
-  
-    // Déplacer le console.log en dehors de la boucle pour qu'il affiche seulement le résultat final
-    if (closest) {
-      console.log("Closest div is:", closest);
-    }
-  
-    return closest; // Retourne le contenu du label du <div> le plus proche du centre Y
-  }
+    calculateScrollBarPosition();
+  }*/
 
 
   const { state } = useContext(SessionContext);
@@ -420,39 +393,56 @@ const FormPage = () => {
   const collectRefForm = (ref:HTMLDivElement) => {
     setFormDivRefs((prevRefs:HTMLDivElement[]) => {
       //console.log('Refs collectées:', prevRefs);
-      calculateScrollBarPosition();
       return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
     });
   };
 
+  useEffect(() => {
+    calculateScrollBarPosition(lastModifiedDiv);
+
+  },[lastModifiedDiv]);
+
+  const updateLastModifiedDiv = (ref: HTMLDivElement) => {
+    setLastModifiedDiv(ref); 
+  };
+
+
     // Method to collect refs in inputs component
     const collectRefScrollBarSection = (ref:HTMLDivElement) => {
+      //console.log('ScrollBarDivRefs:', ScrollBarDivRefs);
       setScrollBarDivRefs((prevRefs:HTMLDivElement[]) => {
-        //console.log('Refs collectées:', prevRefs);
-
         return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
       });
     };
 
   // Method to calculate the heights of the InputDivs
-  const calculateScrollBarPosition = useCallback(() => {
+  const calculateScrollBarPosition = useCallback((ref:HTMLDivElement|null) => {
     const inputHeights = formDivRefs.map((divRef) => {
       return divRef.offsetHeight;
     });
 
-    // Calcul here
-    var LastModifiedDivIndex = formDivRefs.findIndex((element) => element === lastModifiedDiv);
-    var heightSingleSectionScrollBar = `${(window.innerHeight - 140) / inputStates.length}px`;
-    //console.log("heightSingleSectionScrollBar:", heightSingleSectionScrollBar);
+    //const lastDivModifiedIndex = formDivRefs.findIndex(element => element.id === lastModifiedDiv?.id);
+    //console.log('LastDivModifiedIndex:', lastDivModifiedIndex, lastModifiedDiv);
+    
+    // Assurez-vous d'abord que lastModifiedDiv est bien défini et contient les noeuds enfants nécessaires
 
+if (ref) {
+  const scrollBackSection=ScrollBarDivRefs.find((element) => element.id === ref.id)
+  const scrollBackSectionIndex=ScrollBarDivRefs.findIndex((element) => element.id === ref.id)
+  console.log('scrollBackSection:', scrollBackSection);
+  const textareaContainer = ref.querySelector('.textarea-container');
+  if (textareaContainer!) {
+    const positionY = (textareaContainer as HTMLElement).offsetTop;
+    var heightSingleSectionScrollBar = (window.innerHeight - 140) / inputStates.length;
+    var scrollBarPosition = positionY
+    console.log('scrollBarPosition:', scrollBarPosition, scrollBackSectionIndex, heightSingleSectionScrollBar, "position",positionY, window.innerHeight, inputStates.length);
+    setScrollBarPosition(scrollBarPosition);
+  }
+}
     //console.log('************Div modifiée:', LastModifiedDivIndex, 'Height is now:', inputHeights[LastModifiedDivIndex]);
 
     setInputsHeights(inputHeights);
   }, [formDivRefs, ScrollBarDivRefs]);
-
-    const scrollBarStyle = {
-      transform: `translate(${scrollBarPosition.top}px)`,
-    };
 
 
   // UseEffects
@@ -474,9 +464,41 @@ const FormPage = () => {
     }
   }, [isAnyModalOpen]);
 
+  useEffect(() => {
+    function updateCenter() {
+      setYCenter(window.innerHeight / 2);
+    }
+
+    // Ajout de l'écouteur d'événement 'resize'
+    window.addEventListener('resize', updateCenter);
+
+    // Appel initial pour mettre à jour centerY
+    updateCenter();
+
+    // Fonction de nettoyage pour 'resize'
+    return () => {
+      window.removeEventListener('resize', updateCenter);
+    };
+  });
+
+  useEffect(() => {
+    function handleScroll() {
+      calculateClosestDiv();
+      calculateScrollBarPosition(lastModifiedDiv);
+    }
+
+    // Ajout de l'écouteur d'événement 'scroll'
+    window.addEventListener('scroll', handleScroll);
+
+    // Fonction de nettoyage pour 'scroll'
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }); // Se déclenche uniquement lors du premier rendu
+
   return (
     <StrictMode>
-      <RefCollectorContext.Provider value={{ collectRefForm, collectRefScrollBarSection, setLastModifiedDiv }}>
+      <RefCollectorContext.Provider value={{ collectRefForm, collectRefScrollBarSection, updateLastModifiedDiv }}>
       <div className="formPage-container ${theme}">
         <div className="pic-container">
           <Carousel imgs={urls}></Carousel>
@@ -509,8 +531,8 @@ const FormPage = () => {
           </button>
         </div>
         {!loading ? (
-          <div className="progress-wrapper">
-            <ProgressBar sections={inputStates} references={formDivRefs} />
+          <div className="progress-wrapper" style={{top:scrollBarPosition}}>
+            <ProgressBar sections={inputStates} />
           </div>
         ) : (
           <></>

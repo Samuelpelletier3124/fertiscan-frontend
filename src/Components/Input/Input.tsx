@@ -10,6 +10,7 @@ import { useTranslation } from "react-i18next";
 import RefCollectorContext from '../../Context/RefCollectorContext';
 
 interface InputProps {
+  key: number;
   parent: Section;
   inputInfo: Input;
   textarea: React.MutableRefObject<HTMLTextAreaElement | null>;
@@ -103,7 +104,7 @@ const InputComponent: React.FC<InputProps> = ({
     propagateChange(inputInfo);
   };
   
-  const { collectRefForm, setLastModifiedDiv } = useContext(RefCollectorContext);
+  const { collectRefForm, updateLastModifiedDiv } = useContext(RefCollectorContext);
   const divRef = useRef(null);
   const [height, setHeight] = useState(0);
 
@@ -116,16 +117,14 @@ const InputComponent: React.FC<InputProps> = ({
   // UseEffects
   useEffect(() => {
     const divElement = divRef.current;
-    if (!divElement) return console.log("No div element found");
+    if (!divElement) return console.error("No div element found");
 
     const resizeObserver = new ResizeObserver((entries) => {
       for (let entry of entries) {
         const newHeight = (entry.target as HTMLElement).offsetHeight;
-        if (newHeight !== height) {
           collectRefForm(divElement);
           setHeight(newHeight);
-          setLastModifiedDiv(divElement);
-        }
+          updateLastModifiedDiv(divElement);
       }
     });
 
@@ -134,10 +133,10 @@ const InputComponent: React.FC<InputProps> = ({
     return () => {
       resizeObserver.disconnect();
     };
-  }, [height, collectRefForm, setLastModifiedDiv]);
+  }, [divRef, height]);
 
   return (
-    <div className="input-grid-container" ref={divRef}>
+    <div className="input-grid-container" ref={divRef} id={inputInfo.id}>
       <label htmlFor={inputInfo.id} className="input-label">
         {parent.label.charAt(0).toUpperCase() + parent.label.slice(1)}{" "}
         {inputInfo.label.replace(/_/gi, " ")} :
