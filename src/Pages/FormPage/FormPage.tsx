@@ -25,7 +25,7 @@ import RefCollectorContext from '../../Context/RefCollectorContext';
 const FormPage = () => {
   const { t } = useTranslation();
   // Ref collector table
-  const [FormDivRefs, setFormDivRefs] = useState<HTMLDivElement[]>([]);
+  const [formDivRefs, setFormDivRefs] = useState<HTMLDivElement[]>([]);
   const [ScrollBarDivRefs, setScrollBarDivRefs] = useState<HTMLDivElement[]>([]);
   const [inputsHeights, setInputsHeights] = useState<number[]>([]);
   const [lastModifiedDiv, setLastModifiedDiv] = useState<HTMLDivElement | null>(null);
@@ -75,10 +75,13 @@ const FormPage = () => {
     function updateCenter() {
       // Calcul de la nouvelle valeur de centerY
       const newCenterY = window.innerHeight / 2;
-      setYCenter(newCenterY); // Mise à jour de l'état
+      setYCenter(newCenterY);
+      calculateClosestDiv();
     }
     // Enregistrement de la fonction comme écouteur d'événement pour l'événement de redimensionnement
     window.addEventListener('resize', updateCenter);
+
+    window.addEventListener('scroll', updateCenter);
     
     // Mise à jour initiale de centerY lors du premier rendu
     updateCenter();
@@ -89,28 +92,39 @@ const FormPage = () => {
     };
   }, []);
 
-  useEffect(() => {
 
-  }, [centerY]);
-
-  useEffect(() => {
+  function calculateClosestDiv() {
     let closest = null;
     let smallestDifference = Number.POSITIVE_INFINITY;
-
-    FormDivRefs.forEach((divRef) => {
-      if (divRef && centerY) {
+  
+    // S'assurer que centerY est défini et que formDivRefs est un tableau valide
+    if (typeof centerY !== 'number' || !Array.isArray(formDivRefs)) {
+      console.error('Invalid centerY value or formDivRefs');
+      return closest;
+    }
+  
+    formDivRefs.forEach((divRef) => {
+      if (divRef) {
         const rect = divRef.getBoundingClientRect();
-        const divCenterY = rect.top + rect.height / 2;
+        const divCenterY = rect.top + (rect.height / 2) + window.scrollY; // Ajout de window.scrollY pour compenser le défilement de la page
         const difference = Math.abs(centerY - divCenterY);
-
+  
         if (difference < smallestDifference) {
           smallestDifference = difference;
-          closest = (divRef.children[0] as HTMLLabelElement).innerHTML;
-          console.log("Closest div is:", closest);
+          // Assumant ici que divRef.current.children[0] est le label que vous voulez accéder
+          closest = divRef.children[0].innerHTML;
         }
       }
     });
-}, [window.innerHeight, window.scrollY]);
+  
+    // Déplacer le console.log en dehors de la boucle pour qu'il affiche seulement le résultat final
+    if (closest) {
+      console.log("Closest div is:", closest);
+    }
+  
+    return closest; // Retourne le contenu du label du <div> le plus proche du centre Y
+  }
+
 
   const { state } = useContext(SessionContext);
   const { setState } = useContext(SetSessionContext);
@@ -422,19 +436,19 @@ const FormPage = () => {
 
   // Method to calculate the heights of the InputDivs
   const calculateScrollBarPosition = useCallback(() => {
-    const inputHeights = FormDivRefs.map((divRef) => {
+    const inputHeights = formDivRefs.map((divRef) => {
       return divRef.offsetHeight;
     });
 
     // Calcul here
-    var LastModifiedDivIndex = FormDivRefs.findIndex((element) => element === lastModifiedDiv);
+    var LastModifiedDivIndex = formDivRefs.findIndex((element) => element === lastModifiedDiv);
     var heightSingleSectionScrollBar = `${(window.innerHeight - 140) / inputStates.length}px`;
     //console.log("heightSingleSectionScrollBar:", heightSingleSectionScrollBar);
 
     //console.log('************Div modifiée:', LastModifiedDivIndex, 'Height is now:', inputHeights[LastModifiedDivIndex]);
 
     setInputsHeights(inputHeights);
-  }, [FormDivRefs, ScrollBarDivRefs]);
+  }, [formDivRefs, ScrollBarDivRefs]);
 
     const scrollBarStyle = {
       transform: `translate(${scrollBarPosition.top}px)`,
@@ -496,7 +510,7 @@ const FormPage = () => {
         </div>
         {!loading ? (
           <div className="progress-wrapper">
-            <ProgressBar sections={inputStates} references={FormDivRefs} />
+            <ProgressBar sections={inputStates} references={formDivRefs} />
           </div>
         ) : (
           <></>
