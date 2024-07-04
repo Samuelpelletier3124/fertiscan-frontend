@@ -1,5 +1,5 @@
 import "./Input.css";
-import React, { useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import Input from "../../Model/Input-Model";
 import Section from "../../Model/Section-Model";
 import Modal from "../Modal/Modal";
@@ -7,6 +7,7 @@ import editIcon from "../../assets/edit1.svg";
 import acceptIcon from "../../assets/acceptIcon.svg";
 import { FormClickActions } from "../../Utils/EventChannels";
 import { useTranslation } from "react-i18next";
+import RefCollectorContext from '../../Context/RefCollectorContext';
 
 interface InputProps {
   parent: Section;
@@ -65,11 +66,6 @@ const InputComponent: React.FC<InputProps> = ({
     }
   };
 
-  FormClickActions.on("Rejected", (rej: Input) => {
-    if (rej.id === inputInfo.id) {
-      SyncChanges(inputInfo);
-    }
-  });
   const handleStateChange = (inputInfo: Input) => {
     if (inputInfo.property === "approved") {
       console.log("from approved");
@@ -106,9 +102,42 @@ const InputComponent: React.FC<InputProps> = ({
     }
     propagateChange(inputInfo);
   };
+  
+  const { collectRefForm, setLastModifiedDiv } = useContext(RefCollectorContext);
+  const divRef = useRef(null);
+  const [height, setHeight] = useState(0);
+
+  FormClickActions.on("Rejected", (rej: Input) => {
+    if (rej.id === inputInfo.id) {
+      SyncChanges(inputInfo);
+    }
+  });
+
+  // UseEffects
+  useEffect(() => {
+    const divElement = divRef.current;
+    if (!divElement) return console.log("No div element found");
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+        const newHeight = (entry.target as HTMLElement).offsetHeight;
+        if (newHeight !== height) {
+          collectRefForm(divElement);
+          setHeight(newHeight);
+          setLastModifiedDiv(divElement);
+        }
+      }
+    });
+
+    resizeObserver.observe(divElement);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [height, collectRefForm, setLastModifiedDiv]);
 
   return (
-    <div className="input-grid-container">
+    <div className="input-grid-container" ref={divRef}>
       <label htmlFor={inputInfo.id} className="input-label">
         {parent.label.charAt(0).toUpperCase() + parent.label.slice(1)}{" "}
         {inputInfo.label.replace(/_/gi, " ")} :

@@ -4,6 +4,7 @@ import React, {
   useEffect,
   StrictMode,
   useContext,
+  useCallback,
 } from "react";
 import "./FormPage.css";
 import {
@@ -18,9 +19,18 @@ import Input from "../../Model/Input-Model.tsx";
 import Data from "../../Model/Data-Model.tsx";
 import { FormClickActions } from "../../Utils/EventChannels.tsx";
 import { useTranslation } from "react-i18next";
+import RefCollectorContext from '../../Context/RefCollectorContext';
+
 
 const FormPage = () => {
   const { t } = useTranslation();
+  // Ref collector table
+  const [FormDivRefs, setFormDivRefs] = useState<HTMLDivElement[]>([]);
+  const [ScrollBarDivRefs, setScrollBarDivRefs] = useState<HTMLDivElement[]>([]);
+  const [inputsHeights, setInputsHeights] = useState<number[]>([]);
+  const [lastModifiedDiv, setLastModifiedDiv] = useState<HTMLDivElement | null>(null);
+  const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
+  const [scrollBarPosition, setScrollBarPosition] = useState({ top:0});
   // @ts-expect-error : setForm is going to be used when linked to db
   // eslint-disable-next-line
   const [form, setForm] = useState({
@@ -58,11 +68,53 @@ const FormPage = () => {
     guaranteed_analysis: [],
   });
 
+  const [centerY, setYCenter] = useState<number>();
+
+  useEffect(() => {
+    // Définition de la fonction qui met à jour centerY
+    function updateCenter() {
+      // Calcul de la nouvelle valeur de centerY
+      const newCenterY = window.innerHeight / 2;
+      setYCenter(newCenterY); // Mise à jour de l'état
+    }
+    // Enregistrement de la fonction comme écouteur d'événement pour l'événement de redimensionnement
+    window.addEventListener('resize', updateCenter);
+    
+    // Mise à jour initiale de centerY lors du premier rendu
+    updateCenter();
+
+    // Fonction de nettoyage qui sera appelée lors du démontage du composant
+    return () => {
+      window.removeEventListener('resize', updateCenter);
+    };
+  }, []);
+
+  useEffect(() => {
+
+  }, [centerY]);
+
+  useEffect(() => {
+    let closest = null;
+    let smallestDifference = Number.POSITIVE_INFINITY;
+
+    FormDivRefs.forEach((divRef) => {
+      if (divRef && centerY) {
+        const rect = divRef.getBoundingClientRect();
+        const divCenterY = rect.top + rect.height / 2;
+        const difference = Math.abs(centerY - divCenterY);
+
+        if (difference < smallestDifference) {
+          smallestDifference = difference;
+          closest = (divRef.children[0] as HTMLLabelElement).innerHTML;
+          console.log("Closest div is:", closest);
+        }
+      }
+    });
+}, [window.innerHeight, window.scrollY]);
+
   const { state } = useContext(SessionContext);
   const { setState } = useContext(SetSessionContext);
-
   const blobs = state.data.pics;
-
   const [loading, setLoading] = useState(true);
   // @ts-expect-error : has to be used to prompt user when error
   // eslint-disable-next-line
@@ -337,14 +389,6 @@ const FormPage = () => {
     }
   };
 
-  useEffect(() => {
-    textareas.forEach((textareaObj) => {
-      if (textareaObj.ref.current) {
-        resizeTextarea(textareaObj.ref.current);
-      }
-    });
-    // eslint-disable-next-line
-  }, [textareas]);
 
   const handleDataChange = (newSection: Section) => {
     const new_data = data.copy();
@@ -354,10 +398,58 @@ const FormPage = () => {
     setState({ ...state, data: { pics: blobs, form: new_data } });
   };
 
-  const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
   const handleModalStateChange = (isOpen: boolean) => {
     setIsAnyModalOpen(isOpen);
   };
+
+  // Method to collect refs in inputs component
+  const collectRefForm = (ref:HTMLDivElement) => {
+    setFormDivRefs((prevRefs:HTMLDivElement[]) => {
+      //console.log('Refs collectées:', prevRefs);
+      calculateScrollBarPosition();
+      return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
+    });
+  };
+
+    // Method to collect refs in inputs component
+    const collectRefScrollBarSection = (ref:HTMLDivElement) => {
+      setScrollBarDivRefs((prevRefs:HTMLDivElement[]) => {
+        //console.log('Refs collectées:', prevRefs);
+
+        return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
+      });
+    };
+
+  // Method to calculate the heights of the InputDivs
+  const calculateScrollBarPosition = useCallback(() => {
+    const inputHeights = FormDivRefs.map((divRef) => {
+      return divRef.offsetHeight;
+    });
+
+    // Calcul here
+    var LastModifiedDivIndex = FormDivRefs.findIndex((element) => element === lastModifiedDiv);
+    var heightSingleSectionScrollBar = `${(window.innerHeight - 140) / inputStates.length}px`;
+    //console.log("heightSingleSectionScrollBar:", heightSingleSectionScrollBar);
+
+    //console.log('************Div modifiée:', LastModifiedDivIndex, 'Height is now:', inputHeights[LastModifiedDivIndex]);
+
+    setInputsHeights(inputHeights);
+  }, [FormDivRefs, ScrollBarDivRefs]);
+
+    const scrollBarStyle = {
+      transform: `translate(${scrollBarPosition.top}px)`,
+    };
+
+
+  // UseEffects
+  useEffect(() => {
+    textareas.forEach((textareaObj) => {
+      if (textareaObj.ref.current) {
+        resizeTextarea(textareaObj.ref.current);
+      }
+    });
+    // eslint-disable-next-line
+  }, [textareas]);
 
   // Prevent scrolling when a modal is open
   useEffect(() => {
@@ -370,6 +462,7 @@ const FormPage = () => {
 
   return (
     <StrictMode>
+      <RefCollectorContext.Provider value={{ collectRefForm, collectRefScrollBarSection, setLastModifiedDiv }}>
       <div className="formPage-container ${theme}">
         <div className="pic-container">
           <Carousel imgs={urls}></Carousel>
@@ -403,12 +496,13 @@ const FormPage = () => {
         </div>
         {!loading ? (
           <div className="progress-wrapper">
-            <ProgressBar sections={inputStates} />
+            <ProgressBar sections={inputStates} references={FormDivRefs} />
           </div>
         ) : (
           <></>
         )}
       </div>
+      </RefCollectorContext.Provider>
     </StrictMode>
   );
 };

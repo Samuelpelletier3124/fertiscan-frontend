@@ -3,20 +3,56 @@ import { FormClickActions } from "../../Utils/EventChannels";
 import Input from "../../Model/Input-Model";
 import React, { useEffect, useRef } from "react";
 
-const ProgressBar = ({ sections }: { sections: { label: string }[] }) => {
+interface ProgressBarProps {
+  sections: { label: string }[];
+  references: HTMLDivElement[];
+}
+
+const ProgressBar: React.FC<ProgressBarProps> = ({ sections, references }) => {
   const sec: {
     label: string;
+    index: number;
     ref: React.MutableRefObject<HTMLDivElement | null>;
   }[] = [];
 
-  sections.forEach((section) => {
+  sections.forEach((section, index) => {
     sec.push({
       label: section.label,
+      index: index,
       // eslint-disable-next-line
       ref: useRef(null),
     });
   });
+  const flash = (element: HTMLElement) => {
+    let color = "black";
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      color = "white";
+    }
+    element.style.boxShadow = "0 0 10px 5px " + color;
+    setTimeout(() => {
+      element.style.boxShadow = "none";
+    }, 500);
+  };
 
+  const give_focus = (section: { label: string }) => {
+    const sectionObj = sec.find((elem) => elem.label === section.label);
+    if (sectionObj) {
+      //console.log(sectionObj.label, " ", sectionObj.index);
+    }
+    // focus on the selected section
+    const element = document.getElementById(section.label) as HTMLElement;
+    if (element) {
+      element.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+        inline: "nearest",
+      });
+      element.focus();
+      flash(element);
+    }
+  };
+
+  // UseEffects
   useEffect(() => {
     {
       /* const unsubApprove = */
@@ -55,31 +91,6 @@ const ProgressBar = ({ sections }: { sections: { label: string }[] }) => {
     });
     // eslint-disable-next-line
   }, []);
-
-  const flash = (element: HTMLElement) => {
-    let color = "black";
-    if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      color = "white";
-    }
-    element.style.boxShadow = "0 0 10px 5px " + color;
-    setTimeout(() => {
-      element.style.boxShadow = "none";
-    }, 500);
-  };
-
-  const give_focus = (section: { label: string }) => {
-    // focus on the selected section
-    const element = document.getElementById(section.label) as HTMLElement;
-    if (element) {
-      element.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-        inline: "nearest",
-      });
-      element.focus();
-      flash(element);
-    }
-  };
 
   return (
     <div className="progress-bar-vertical">
