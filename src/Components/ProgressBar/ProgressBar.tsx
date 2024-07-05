@@ -14,6 +14,9 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ sections }) => {
     index: index,
     ref: React.createRef<HTMLDivElement>(),
   }))).current;
+  const refCollectorContext = useContext(RefCollectorContext);
+  const  updateProgressBarFocus  = refCollectorContext.updateProgressBarFocus;
+  const collectRefScrollBarSection = refCollectorContext.collectRefScrollBarSection;
 
   sections.forEach((section, index) => {
     sec.push({
@@ -92,9 +95,6 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ sections }) => {
     // eslint-disable-next-line
   }, []);
 
-  const refCollectorContext = useContext(RefCollectorContext);
-  const collectRefScrollBarSection = refCollectorContext.collectRefScrollBarSection;
-
   useEffect(() => {
     sec.forEach((section) => {
       if (section.ref.current !== null) {
@@ -113,16 +113,13 @@ const ProgressBar: React.FC<ProgressBarProps> = ({ sections }) => {
           className={`section `}
           ref={sec.find((elem) => elem.label == section.label)!.ref}
           style={{
-            borderTopLeftRadius: sec_index === 0 ? "15px" : "0",
-            borderTopRightRadius: sec_index === 0 ? "15px" : "0",
-            borderBottomLeftRadius:
-              sec_index === sections.length - 1 ? "15px" : "0",
-            borderBottomRightRadius:
-              sec_index === sections.length - 1 ? "15px" : "0",
-            borderBottom:
-              sec_index === sections.length - 1 ? "none" : "2px solid ",
-            height: `${(window.innerHeight - 140) / sections.length}px`,
-            cursor: "pointer",
+            borderTopLeftRadius: sec_index === 0 ? '15px' : '0',
+            borderTopRightRadius: sec_index === 0 ? '15px' : '0',
+            borderBottomLeftRadius: sec_index === sections.length - 1 ? '15px' : '0',
+            borderBottomRightRadius: sec_index === sections.length - 1 ? '15px' : '0',
+            borderBottom: sec_index === sections.length - 1 ? 'none' : '2px solid',
+            height: `${(window.innerHeight*1.5) / sections.length}px`,
+            cursor: 'pointer',
           }}
         ></div>
       ))}

@@ -5,6 +5,7 @@ import React, {
   StrictMode,
   useContext,
   useCallback,
+  createContext,
 } from "react";
 import "./FormPage.css";
 import {
@@ -20,7 +21,7 @@ import Data from "../../Model/Data-Model.tsx";
 import { FormClickActions } from "../../Utils/EventChannels.tsx";
 import { useTranslation } from "react-i18next";
 import RefCollectorContext from '../../Context/RefCollectorContext';
-
+import { set } from "local-storage";
 
 const FormPage = () => {
   const { t } = useTranslation();
@@ -31,6 +32,7 @@ const FormPage = () => {
   const [lastModifiedDiv, setLastModifiedDiv] = useState<HTMLDivElement | null>(null);
   const [isAnyModalOpen, setIsAnyModalOpen] = useState(false);
   const [scrollBarPosition, setScrollBarPosition] = useState<number>();
+  const [handleProgressBarFocus, setHandleProgressBarFocus] = useState<HTMLDivElement | null>(null);
   // @ts-expect-error : setForm is going to be used when linked to db
   // eslint-disable-next-line
   const [form, setForm] = useState({
@@ -71,32 +73,107 @@ const FormPage = () => {
   const [centerY, setYCenter] = useState<number>();
 
   function updateCenter() {
-    // Calcul de la nouvelle valeur de centerY
     const newCenterY = window.innerHeight / 2;
     setYCenter(newCenterY);
-    //calculateClosestDiv();
   }
 
+  let lastClosestIndex = 0; // Stockez le dernier index du div le plus proche du centre
 
-  /*function calculateClosestDiv() {
-    let closest = null;
-    let smallestDifference = Number.POSITIVE_INFINITY;
-  
-    formDivRefs.forEach((divRef) => {
-      if (divRef && centerY !== undefined) {
-        const rect = divRef.getBoundingClientRect();
-        const divCenterY = rect.top + (rect.height / 2); // Ajout de window.scrollY pour compenser le défilement de la page
-        const difference = Math.abs(centerY - divCenterY);
-  
-        if (difference < smallestDifference) {
-          smallestDifference = difference;
-          //console.log(divRef.children[0].innerHTML, "/n ",rect," /n",'DivCenterY:', divCenterY,"/n", 'Difference:', difference);
-          //closest = divRef.children[];
-        }
+  function findClosestDivOnScrollUp() {
+    let closestDiv = null;
+    let closestTextarea = null;
+    let smallestDivDifference = Infinity;
+
+    // Itérer seulement jusqu'à l'élément le plus proche actuel
+    for (let i = 0; i <= lastClosestIndex; i++) {
+      const divRef = formDivRefs[i];
+      const outcome = findClosestTextareaInDiv(divRef);
+      if (outcome && outcome.divDifference < smallestDivDifference) {
+        ({ closestDiv, closestTextarea, divDifference: smallestDivDifference } = outcome);
+        lastClosestIndex = i;
+      }
+    }
+
+    return { closestDiv, closestTextarea };
+  }
+
+  function findClosestDivOnScrollDown() {
+    let closestDiv = null;
+    let closestTextarea = null;
+    let smallestDivDifference = Infinity;
+
+    // Commencer par l'élément le plus proche actuel et itérer sur les trois divs suivants
+    for (let i = lastClosestIndex; i < lastClosestIndex + 4 && i < formDivRefs.length; i++) {
+      const divRef = formDivRefs[i];
+      const outcome = findClosestTextareaInDiv(divRef);
+      if (outcome && outcome.divDifference < smallestDivDifference) {
+        ({ closestDiv, closestTextarea, divDifference: smallestDivDifference } = outcome);
+        lastClosestIndex = i;
+      }
+    }
+
+    return { closestDiv, closestTextarea };
+  }
+
+  function findClosestTextareaInDiv(divRef: HTMLDivElement | null) {
+    if (!divRef) return null;
+
+    let closestTextarea = null;
+    let smallestTextareaDifference = Infinity;
+    const divRect = divRef.getBoundingClientRect();
+    const divCenterY = divRect.top + divRect.height / 2;
+    const divDifference = Math.abs(centerY! - (divCenterY + window.scrollY));
+
+    const textareas = divRef.querySelectorAll('textarea');
+
+    textareas.forEach((textarea) => {
+      const textareaRect = textarea.getBoundingClientRect();
+      const textareaCenterY = textareaRect.top + textareaRect.height / 2;
+      const textareaDifference = Math.abs(centerY! - (textareaCenterY + window.scrollY));
+
+      if (textareaDifference < smallestTextareaDifference) {
+        smallestTextareaDifference = textareaDifference;
+        closestTextarea = textarea as HTMLTextAreaElement;
+        calculateScrollBarPosition(closestTextarea);
       }
     });
-    calculateScrollBarPosition();
-  }*/
+
+    //console.log(closestTextarea!.id, closestTextarea!.getBoundingClientRect());
+    return {
+      closestDiv: divRef,
+      closestTextarea,
+      divDifference
+    };
+  }
+
+  let lastScrollY = window.scrollY;
+  let throttleTimer: NodeJS.Timeout | null = null;
+  const throttle = (callback: () => void, time: number): void => {  
+    if (throttleTimer==null) return;
+  
+    throttleTimer = setTimeout(() => {
+      callback();
+      throttleTimer = null;
+    }, time);
+  };
+/*
+  window.addEventListener('scroll', () => {
+    throttle(() => {
+    if (window.scrollY < lastScrollY) {
+      console.log('\n\n\n scrolling up \n\n\n');
+      findClosestDivOnScrollUp();
+    } else {
+      console.log('\n\n\n scrolling down \n\n\n');
+
+      findClosestDivOnScrollDown();
+    }
+    lastScrollY = window.scrollY;
+  }, 1001);
+  });*/
+
+
+
+
 
 
   const { state } = useContext(SessionContext);
@@ -390,59 +467,76 @@ const FormPage = () => {
   };
 
   // Method to collect refs in inputs component
-  const collectRefForm = (ref:HTMLDivElement) => {
-    setFormDivRefs((prevRefs:HTMLDivElement[]) => {
+  const collectRefForm = (ref: HTMLDivElement) => {
+    setFormDivRefs((prevRefs: HTMLDivElement[]) => {
       //console.log('Refs collectées:', prevRefs);
       return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
     });
   };
 
-  useEffect(() => {
-    calculateScrollBarPosition(lastModifiedDiv);
-
-  },[lastModifiedDiv]);
-
   const updateLastModifiedDiv = (ref: HTMLDivElement) => {
-    setLastModifiedDiv(ref); 
+    setLastModifiedDiv(ref);
   };
 
 
-    // Method to collect refs in inputs component
-    const collectRefScrollBarSection = (ref:HTMLDivElement) => {
-      //console.log('ScrollBarDivRefs:', ScrollBarDivRefs);
-      setScrollBarDivRefs((prevRefs:HTMLDivElement[]) => {
-        return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
-      });
-    };
+  // Method to collect refs in inputs component
+  const collectRefScrollBarSection = (ref: HTMLDivElement) => {
+    //console.log('ScrollBarDivRefs:', ScrollBarDivRefs);
+    setScrollBarDivRefs((prevRefs: HTMLDivElement[]) => {
+      return prevRefs.includes(ref) ? prevRefs : [...prevRefs, ref];
+    });
+  };
 
   // Method to calculate the heights of the InputDivs
-  const calculateScrollBarPosition = useCallback((ref:HTMLDivElement|null) => {
+  const calculateScrollBarPosition = useCallback((ref: HTMLTextAreaElement | null) => {
     const inputHeights = formDivRefs.map((divRef) => {
       return divRef.offsetHeight;
     });
-
-    //const lastDivModifiedIndex = formDivRefs.findIndex(element => element.id === lastModifiedDiv?.id);
-    //console.log('LastDivModifiedIndex:', lastDivModifiedIndex, lastModifiedDiv);
-    
-    // Assurez-vous d'abord que lastModifiedDiv est bien défini et contient les noeuds enfants nécessaires
-
-if (ref) {
-  const scrollBackSection=ScrollBarDivRefs.find((element) => element.id === ref.id)
-  const scrollBackSectionIndex=ScrollBarDivRefs.findIndex((element) => element.id === ref.id)
-  console.log('scrollBackSection:', scrollBackSection);
-  const textareaContainer = ref.querySelector('.textarea-container');
-  if (textareaContainer!) {
-    const positionY = (textareaContainer as HTMLElement).offsetTop;
-    var heightSingleSectionScrollBar = (window.innerHeight - 140) / inputStates.length;
-    var scrollBarPosition = positionY
-    console.log('scrollBarPosition:', scrollBarPosition, scrollBackSectionIndex, heightSingleSectionScrollBar, "position",positionY, window.innerHeight, inputStates.length);
-    setScrollBarPosition(scrollBarPosition);
-  }
-}
+    if (ref) {
+      var scrollBackSection = ScrollBarDivRefs.find((element) => element.id === ref.id)
+      //var scrollBackSectionIndex=ScrollBarDivRefs.findIndex((element) => element.id === ref.id)
+      console.log('scrollBackSection:', scrollBackSection);
+      var textareaContainer = ref.querySelector('.textarea-container');
+      if (textareaContainer!) {
+        var textArea = (textareaContainer as HTMLElement);
+        var rect = textArea.getBoundingClientRect();
+        var positionY = rect.top;
+        var heightSingleSectionScrollBar = (window.innerHeight - 140) / inputStates.length;
+        var scrollBarPosition = positionY - (heightSingleSectionScrollBar * (ScrollBarDivRefs.findIndex((element) => element.id === ref.id) + 1));
+        //console.log('textareaPosition:', positionY);
+        //console.log('positionY:', positionY, );
+        //console.log('scrollBackSectionIndex:', scrollBackSectionIndex, );
+        //console.log('heightSingleSectionScrollBar:', heightSingleSectionScrollBar);
+        setScrollBarPosition(scrollBarPosition);
+      }
+    }
     //console.log('************Div modifiée:', LastModifiedDivIndex, 'Height is now:', inputHeights[LastModifiedDivIndex]);
 
     setInputsHeights(inputHeights);
   }, [formDivRefs, ScrollBarDivRefs]);
+
+
+  const updateProgressBarFocus = useCallback((ref: HTMLDivElement | null) => {
+    setHandleProgressBarFocus(ref);
+  }, [formDivRefs]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
   // UseEffects
@@ -481,63 +575,48 @@ if (ref) {
     };
   });
 
-  useEffect(() => {
-    function handleScroll() {
-      calculateClosestDiv();
-      calculateScrollBarPosition(lastModifiedDiv);
-    }
-
-    // Ajout de l'écouteur d'événement 'scroll'
-    window.addEventListener('scroll', handleScroll);
-
-    // Fonction de nettoyage pour 'scroll'
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
-  }); // Se déclenche uniquement lors du premier rendu
-
   return (
     <StrictMode>
-      <RefCollectorContext.Provider value={{ collectRefForm, collectRefScrollBarSection, updateLastModifiedDiv }}>
-      <div className="formPage-container ${theme}">
-        <div className="pic-container">
-          <Carousel imgs={urls}></Carousel>
-        </div>
-        <div className="data-container">
-          {loading ? (
-            <div className={`loader-container-form ${loading ? "active" : ""}`}>
-              <div className="spinner"></div>
-              <p>{t("analyzingText")}</p>
+      <RefCollectorContext.Provider value={{ collectRefForm, collectRefScrollBarSection, updateLastModifiedDiv, updateProgressBarFocus }}>
+        <div className="formPage-container ${theme}">
+          <div className="pic-container">
+            <Carousel imgs={urls}></Carousel>
+          </div>
+          <div className="data-container">
+            {loading ? (
+              <div className={`loader-container-form ${loading ? "active" : ""}`}>
+                <div className="spinner"></div>
+                <p>{t("analyzingText")}</p>
+              </div>
+            ) : (
+              <div>
+                {[...data.sections].map((sectionInfo: Section, key: number) => {
+                  return (
+                    <SectionComponent
+                      key={key}
+                      sectionInfo={sectionInfo}
+                      textareas={textareas}
+                      modals={modals}
+                      imgs={urls}
+                      propagateChange={handleDataChange}
+                      onModalStateChange={handleModalStateChange}
+                    ></SectionComponent>
+                  );
+                })}
+              </div>
+            )}
+            <button className="button" onClick={submitForm}>
+              {t("submitButton")}
+            </button>
+          </div>
+          {!loading ? (
+            <div className="progress-wrapper" style={{ top: scrollBarPosition }}>
+              <ProgressBar sections={inputStates} />
             </div>
           ) : (
-            <div>
-              {[...data.sections].map((sectionInfo: Section, key: number) => {
-                return (
-                  <SectionComponent
-                    key={key}
-                    sectionInfo={sectionInfo}
-                    textareas={textareas}
-                    modals={modals}
-                    imgs={urls}
-                    propagateChange={handleDataChange}
-                    onModalStateChange={handleModalStateChange}
-                  ></SectionComponent>
-                );
-              })}
-            </div>
+            <></>
           )}
-          <button className="button" onClick={submitForm}>
-            {t("submitButton")}
-          </button>
         </div>
-        {!loading ? (
-          <div className="progress-wrapper" style={{top:scrollBarPosition}}>
-            <ProgressBar sections={inputStates} />
-          </div>
-        ) : (
-          <></>
-        )}
-      </div>
       </RefCollectorContext.Provider>
     </StrictMode>
   );
