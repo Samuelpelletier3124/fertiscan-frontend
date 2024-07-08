@@ -1,0 +1,32 @@
+.NonComplianceSideSection-section {
+    display: flex;
+    flex-direction: column;
+    position: sticky;
+    top: 0;
+    right: 0;
+    height: 100vh;
+    z-index: 10;
+    transition: all 0.3s ease;
+    background-color: #fff; /* Fond blanc */
+    border-left: 1.5px solid black; /* Bordure à gauche */
+  }
+  
+  .expanded {
+    width: 30%; /* 30% de la largeur de la page */
+  }
+  
+  .collapsed {
+    width: 40px; /* Assez pour afficher le bouton de bascule */
+  }
+  
+  .toggle-button {
+    background-color: #eee;
+    border: none;
+    cursor: pointer;
+    outline: none;
+  }
+  
+  .content {
+    /* Style the sidebar content */
+    padding: 10px; /* Ajoutez un espacement autour du contenu */
+  }
