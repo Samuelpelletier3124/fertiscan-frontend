@@ -1,32 +1,74 @@
-.NonComplianceSideSection-section {
+.non-compliance-side-section {
     display: flex;
     flex-direction: column;
-    position: sticky;
+    position: fixed; /* Fixe la section par rapport à la fenêtre de l'affichage */
     top: 0;
-    right: 0;
-    height: 100vh;
-    z-index: 10;
-    transition: all 0.3s ease;
-    background-color: #fff; /* Fond blanc */
-    border-left: 1.5px solid black; /* Bordure à gauche */
+    right: 0; /* Changez cette valeur si nécessaire pour aligner avec les autres éléments */
+    max-height: 100vh;
+    overflow-y: auto; /* Permet le scroll du contenu intérieur quand ouvert */
+    z-index: 9999; /* Assurez-vous qu'elle est visible par-dessus les autres éléments */
+    background-color: #fff;
+    border-left: 1px solid #ccc; /* Adaptez au style de votre application */
+    transition: width 0.3s ease-in-out;
   }
   
   .expanded {
-    width: 30%; /* 30% de la largeur de la page */
+    width: 250px; /* ou la largeur souhaitée quand la section est ouverte */
   }
   
   .collapsed {
-    width: 40px; /* Assez pour afficher le bouton de bascule */
+    width: 40px; /* La largeur permettant de voir seulement le bouton */
+    overflow-y: hidden; /* Enlève le scroll quand la section est fermée */
   }
   
-  .toggle-button {
-    background-color: #eee;
-    border: none;
+  .togg-side-sectionle-button {
+    position: absolute;
+    top: 50%; /* Centré verticalement */
+    right: 0; /* Ajustez si nécessaire */
+    transform: translateY(-50%); /* Centré par rapport à sa propre hauteur */
+    width: 80px;
+    height: 60px;
+    background-color: #777777;
+    border: 1px black;
     cursor: pointer;
     outline: none;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: right 0.3s ease-in-out;
+    font-weight: 100;
+    color:black;
+  }
+
+  .non-compliance-side-section.expanded .toggle-button {
+    right: 250px; /* Décaler de la largeur du contenu ouvert */
   }
   
+  /* Aucun décalage supplémentaire n'est nécessaire pour la version fermée */
+  .non-compliance-side-section.collapsed .toggle-button {
+    top:20vh;  
+}
+  
   .content {
-    /* Style the sidebar content */
-    padding: 10px; /* Ajoutez un espacement autour du contenu */
+    padding: 10px;
+  }
+  
+  .content table {
+    width: 100%; /* Prendre toute la largeur du contenu */
+    border-collapse: collapse;
+  }
+  
+  .content th, .content td {
+    border: 1px solid black;
+    padding: 5px;
+    text-align: left; /* Aligner le texte à gauche, ou comme vous préférez */
+  }
+  
+  /* Adaptation de la taille du texte dans le contenu si nécessaire */
+  .content p,
+  .content li,
+  .content td {
+    font-size: 16px; /* Exemple de taille de texte */
+    line-height: 1.5; /* Exemple d'interligne */
   }

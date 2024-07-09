@@ -407,12 +407,12 @@ const FormPage = () => {
         {!loading ? (
           <div className="progress-wrapper">
             <ProgressBar sections={inputStates} />
-            <NonComplianceSideSection />
           </div>
         ) : (
           <></>
         )}
       </div>
+      <NonComplianceSideSection />
     </StrictMode>
   );
 };
